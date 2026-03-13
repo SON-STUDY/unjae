@@ -71,14 +71,13 @@ dependencies {
 
 	// test
 	testRuntimeOnly 'com.h2database:h2'
-}
 
-sourceSets {
-	main.java.srcDirs += [querydslGeneratedDir]
-}
+	// prometheus
+	implementation 'org.springframework.boot:spring-boot-starter-actuator'
+	runtimeOnly 'io.micrometer:micrometer-registry-prometheus'
 
-tasks.withType(JavaCompile).configureEach {
-	options.generatedSourceOutputDirectory = file(querydslGeneratedDir)
+	// JSON 구조화 로그용 (운영 환경)
+	implementation("net.logstash.logback:logstash-logback-encoder:7.4")
 }
 
 tasks.named('test') {
