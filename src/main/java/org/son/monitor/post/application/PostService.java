@@ -1,5 +1,8 @@
 package org.son.monitor.post.application;
 
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.Gauge;
+import io.micrometer.core.instrument.MeterRegistry;
 import lombok.RequiredArgsConstructor;
 import org.son.monitor.common.exception.BusinessException;
 import org.son.monitor.common.exception.ErrorCode;
@@ -15,12 +18,24 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 
 @Service
-@RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class PostService {
 
     private final PostRepository postRepository;
     private final UserService userService;
+    private final Counter postCreatedCounter;
+    private final Counter postDeletedCounter;
+
+    public PostService(PostRepository postRepository, UserService userService, MeterRegistry registry) {
+        this.postRepository = postRepository;
+        this.userService = userService;
+        this.postCreatedCounter = Counter.builder("business.post.created.total")
+                .description("게시글 생성 누적 수")
+                .register(registry);
+        this.postDeletedCounter = Counter.builder("business.post.deleted.total")
+                .description("게시글 삭제 누적 수")
+                .register(registry);
+    }
 
     public List<PostResponse> findAll() {
         return postRepository.findAllWithAuthor().stream()
@@ -33,9 +48,11 @@ public class PostService {
     }
 
     @Transactional
-    public PostResponse create(PostCreateRequest request) {
-        Post post = request.toEntity(userService.getUser(request.authorId()));
-        return PostResponse.from(postRepository.save(post));
+    public PostResponse create(PostCreateRequest request, Long userId) {
+        Post post = request.toEntity(userService.getUser(userId));
+        PostResponse response = PostResponse.from(postRepository.save(post));
+        postCreatedCounter.increment();
+        return response;
     }
 
     @Transactional
@@ -48,6 +65,7 @@ public class PostService {
     @Transactional
     public void delete(Long id) {
         postRepository.delete(getPost(id));
+        postDeletedCounter.increment();
     }
 
     public Post getPost(Long id) {

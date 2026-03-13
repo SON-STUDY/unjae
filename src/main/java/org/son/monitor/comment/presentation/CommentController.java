@@ -31,8 +31,10 @@ public class CommentController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public ApiResponse<CommentResponse> create(@Valid @RequestBody CommentCreateRequest request) {
-        return ApiResponse.created(commentService.create(request));
+    public ApiResponse<CommentResponse> create(
+            @RequestHeader("X-User-Id") Long userId,
+            @Valid @RequestBody CommentCreateRequest request) {
+        return ApiResponse.created(commentService.create(request, userId));
     }
 
     @PutMapping("/{id}")

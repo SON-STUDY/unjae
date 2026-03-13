@@ -35,10 +35,10 @@ public class CommentService {
     }
 
     @Transactional
-    public CommentResponse create(CommentCreateRequest request) {
+    public CommentResponse create(CommentCreateRequest request, Long userId) {
         Comment comment = request.toEntity(
                 postService.getPost(request.postId()),
-                userService.getUser(request.authorId())
+                userService.getUser(userId)
         );
         return CommentResponse.from(commentRepository.save(comment));
     }
