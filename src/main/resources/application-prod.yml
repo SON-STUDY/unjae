@@ -1,0 +1,40 @@
+spring:
+  application:
+    name: monitor
+
+  datasource:
+    url: jdbc:mysql://mysql:3306/monitor
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:1234}
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info, prometheus, metrics
+  endpoint:
+    prometheus:
+      enabled: true
+    health:
+      show-details: always
+  metrics:
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+        service.method.duration: true
+      percentiles:
+        http.server.requests: 0.5, 0.95, 0.99
+        service.method.duration: 0.5, 0.95, 0.99
+      slo:
+        http.server.requests: 50ms, 100ms, 300ms, 500ms, 1000ms
+        service.method.duration: 50ms, 100ms, 300ms, 500ms, 1000ms
+
+logging:
+  level:
+    root: WARN
+    org.son.monitor: INFO

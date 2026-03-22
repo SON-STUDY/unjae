@@ -31,8 +31,10 @@ public class PostController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public ApiResponse<PostResponse> create(@Valid @RequestBody PostCreateRequest request) {
-        return ApiResponse.created(postService.create(request));
+    public ApiResponse<PostResponse> create(
+            @RequestHeader("X-User-Id") Long userId,
+            @Valid @RequestBody PostCreateRequest request) {
+        return ApiResponse.created(postService.create(request, userId));
     }
 
     @PutMapping("/{id}")

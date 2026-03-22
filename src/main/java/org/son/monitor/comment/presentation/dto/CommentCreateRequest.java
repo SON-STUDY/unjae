@@ -12,10 +12,7 @@ public record CommentCreateRequest(
         Long postId,
 
         @NotBlank(message = "내용은 필수입니다.")
-        String content,
-
-        @NotNull(message = "작성자 ID는 필수입니다.")
-        Long authorId
+        String content
 ) {
     public Comment toEntity(Post post, User author) {
         return Comment.builder()
