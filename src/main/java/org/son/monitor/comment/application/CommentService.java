@@ -1,6 +1,7 @@
 package org.son.monitor.comment.application;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.son.monitor.comment.domain.Comment;
 import org.son.monitor.comment.infrastructure.CommentRepository;
 import org.son.monitor.comment.presentation.dto.CommentCreateRequest;
@@ -15,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -40,19 +42,26 @@ public class CommentService {
                 postService.getPost(request.postId()),
                 userService.getUser(userId)
         );
-        return CommentResponse.from(commentRepository.save(comment));
+        CommentResponse response = CommentResponse.from(commentRepository.save(comment));
+        log.info("comment.created commentId={} postId={} userId={}", response.id(), response.postId(), userId);
+        return response;
     }
 
     @Transactional
     public CommentResponse update(Long id, CommentUpdateRequest request) {
         Comment comment = getComment(id);
         comment.update(request.content());
-        return CommentResponse.from(comment);
+        CommentResponse response = CommentResponse.from(comment);
+        log.info("comment.updated commentId={} postId={}", id, response.postId());
+        return response;
     }
 
     @Transactional
     public void delete(Long id) {
-        commentRepository.delete(getComment(id));
+        Comment comment = getComment(id);
+        Long postId = comment.getPost().getId();
+        commentRepository.delete(comment);
+        log.info("comment.deleted commentId={} postId={}", id, postId);
     }
 
     private Comment getComment(Long id) {

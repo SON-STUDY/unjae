@@ -1,0 +1,70 @@
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+# Loki에 로그 푸시
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+
+# 포지션 저장 (재시작 시 중복 수집 방지)
+positions:
+  filename: /tmp/positions.yaml
+
+scrape_configs:
+  # ── Docker 컨테이너 로그 자동 수집 ────────────────────────────────────
+  - job_name: docker-containers
+    docker_sd_configs:
+      - host: unix:///var/run/docker.sock
+        refresh_interval: 5s
+        filters:
+          - name: status
+            values: ["running"]
+
+    relabel_configs:
+      # 컨테이너 이름을 라벨로 추가
+      - source_labels: [__meta_docker_container_name]
+        target_label: container
+        regex: /(.*)
+        replacement: $1
+
+      # 이미지 이름을 라벨로 추가
+      - source_labels: [__meta_docker_container_image]
+        target_label: image
+
+      # monitor-app 컨테이너만 JSON 파싱 적용
+      - source_labels: [__meta_docker_container_name]
+        target_label: __path__
+        regex: /monitor-app
+        # monitor-app은 아래 pipeline_stages에서 JSON 파싱
+
+    pipeline_stages:
+      # monitor-app 컨테이너는 JSON 구조화 로그
+      - match:
+          selector: '{container="monitor-app"}'
+          stages:
+            # JSON 파싱
+            - json:
+                expressions:
+                  level: level
+                  traceId: traceId
+                  userId: userId
+                  message: message
+                  logger: logger
+
+            # 파싱한 필드를 라벨로 승격 (인덱싱됨 - 검색 빠름)
+            - labels:
+                level:    # INFO, WARN, ERROR
+                traceId:  # 요청 추적용
+                userId:   # 사용자 추적용
+
+            # 타임스탬프 파싱 (Loki 내부 시간 기준으로 사용)
+            - timestamp:
+                source: "@timestamp"
+                format: RFC3339Nano
+
+      # 그 외 컨테이너는 일반 텍스트 로그
+      - match:
+          selector: '{container!="monitor-app"}'
+          stages:
+            - static_labels:
+                log_type: plain

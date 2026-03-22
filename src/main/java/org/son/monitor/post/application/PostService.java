@@ -4,6 +4,7 @@ import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.son.monitor.common.exception.BusinessException;
 import org.son.monitor.common.exception.ErrorCode;
 import org.son.monitor.post.domain.Post;
@@ -17,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
+@Slf4j
 @Service
 @Transactional(readOnly = true)
 public class PostService {
@@ -52,6 +54,7 @@ public class PostService {
         Post post = request.toEntity(userService.getUser(userId));
         PostResponse response = PostResponse.from(postRepository.save(post));
         postCreatedCounter.increment();
+        log.info("post.created postId={} userId={} title={}", response.id(), userId, response.title());
         return response;
     }
 
@@ -59,13 +62,16 @@ public class PostService {
     public PostResponse update(Long id, PostUpdateRequest request) {
         Post post = getPost(id);
         post.update(request.title(), request.content());
-        return PostResponse.from(post);
+        PostResponse response = PostResponse.from(post);
+        log.info("post.updated postId={} title={}", id, response.title());
+        return response;
     }
 
     @Transactional
     public void delete(Long id) {
         postRepository.delete(getPost(id));
         postDeletedCounter.increment();
+        log.info("post.deleted postId={}", id);
     }
 
     public Post getPost(Long id) {

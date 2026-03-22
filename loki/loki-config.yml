@@ -1,0 +1,59 @@
+auth_enabled: false
+
+server:
+  http_listen_port: 3100
+  grpc_listen_port: 9096
+
+common:
+  instance_addr: 127.0.0.1
+  path_prefix: /loki
+  storage:
+    filesystem:
+      chunks_directory: /loki/chunks
+      rules_directory: /loki/rules
+  replication_factor: 1
+  ring:
+    kvstore:
+      store: inmemory
+
+# 쿼리 설정
+query_range:
+  results_cache:
+    cache:
+      embedded_cache:
+        enabled: true
+        max_size_mb: 100
+
+# 스키마 설정 (인덱싱 방식)
+schema_config:
+  configs:
+    - from: 2024-01-01
+      store: tsdb          # 최신 인덱스 스토어 (빠름)
+      object_store: filesystem
+      schema: v13
+      index:
+        prefix: index_
+        period: 24h        # 하루 단위로 인덱스 생성
+
+# 저장 설정
+storage_config:
+  tsdb_shipper:
+    active_index_directory: /loki/tsdb-index
+    cache_location: /loki/tsdb-cache
+    cache_ttl: 24h
+
+# 데이터 보존 정책
+limits_config:
+  retention_period: 30d   # 30일 보관
+  ingestion_rate_mb: 16
+  ingestion_burst_size_mb: 32
+
+# 압축 (오래된 로그 정리)
+compactor:
+  working_directory: /loki/compactor
+  retention_enabled: true
+  retention_delete_delay: 2h
+
+# 룰 설정 (알림용)
+ruler:
+  alertmanager_url: http://localhost:9093
