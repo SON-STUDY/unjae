@@ -1,10 +1,9 @@
 package org.son.monitor.post.application;
 
 import io.micrometer.core.instrument.Counter;
-import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.son.monitor.common.annotation.Logging;
 import org.son.monitor.common.exception.BusinessException;
 import org.son.monitor.common.exception.ErrorCode;
 import org.son.monitor.post.domain.Post;
@@ -39,39 +38,40 @@ public class PostService {
                 .register(registry);
     }
 
+    @Logging
     public List<PostResponse> findAll() {
         return postRepository.findAllWithAuthor().stream()
                 .map(PostResponse::from)
                 .toList();
     }
 
+    @Logging
     public PostResponse findById(Long id) {
         return PostResponse.from(getPost(id));
     }
 
+    @Logging
     @Transactional
     public PostResponse create(PostCreateRequest request, Long userId) {
         Post post = request.toEntity(userService.getUser(userId));
         PostResponse response = PostResponse.from(postRepository.save(post));
         postCreatedCounter.increment();
-        log.info("post.created postId={} userId={} title={}", response.id(), userId, response.title());
         return response;
     }
 
+    @Logging
     @Transactional
     public PostResponse update(Long id, PostUpdateRequest request) {
         Post post = getPost(id);
         post.update(request.title(), request.content());
-        PostResponse response = PostResponse.from(post);
-        log.info("post.updated postId={} title={}", id, response.title());
-        return response;
+        return PostResponse.from(post);
     }
 
+    @Logging
     @Transactional
     public void delete(Long id) {
         postRepository.delete(getPost(id));
         postDeletedCounter.increment();
-        log.info("post.deleted postId={}", id);
     }
 
     public Post getPost(Long id) {

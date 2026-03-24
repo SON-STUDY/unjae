@@ -3,7 +3,7 @@ name: issue
 description: GitHub 이슈를 생성한다. 이슈 내용을 인수로 받아 컨벤션에 맞는 제목과 본문을 작성하고 gh issue create를 실행한다.
 argument-hint: <이슈 내용>
 disable-model-invocation: true
-allowed-tools: Bash(gh issue *)
+allowed-tools: Bash
 ---
 
 # issue: $ARGUMENTS

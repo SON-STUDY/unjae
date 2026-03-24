@@ -7,6 +7,7 @@ import org.son.monitor.comment.infrastructure.CommentRepository;
 import org.son.monitor.comment.presentation.dto.CommentCreateRequest;
 import org.son.monitor.comment.presentation.dto.CommentResponse;
 import org.son.monitor.comment.presentation.dto.CommentUpdateRequest;
+import org.son.monitor.common.annotation.Logging;
 import org.son.monitor.common.exception.BusinessException;
 import org.son.monitor.common.exception.ErrorCode;
 import org.son.monitor.post.application.PostService;
@@ -26,42 +27,41 @@ public class CommentService {
     private final PostService postService;
     private final UserService userService;
 
+    @Logging
     public List<CommentResponse> findAllByPostId(Long postId) {
         return commentRepository.findAllByPostIdWithAuthor(postId).stream()
                 .map(CommentResponse::from)
                 .toList();
     }
 
+    @Logging
     public CommentResponse findById(Long id) {
         return CommentResponse.from(getComment(id));
     }
 
+    @Logging
     @Transactional
     public CommentResponse create(CommentCreateRequest request, Long userId) {
         Comment comment = request.toEntity(
                 postService.getPost(request.postId()),
                 userService.getUser(userId)
         );
-        CommentResponse response = CommentResponse.from(commentRepository.save(comment));
-        log.info("comment.created commentId={} postId={} userId={}", response.id(), response.postId(), userId);
-        return response;
+        return CommentResponse.from(commentRepository.save(comment));
     }
 
+    @Logging
     @Transactional
     public CommentResponse update(Long id, CommentUpdateRequest request) {
         Comment comment = getComment(id);
         comment.update(request.content());
-        CommentResponse response = CommentResponse.from(comment);
-        log.info("comment.updated commentId={} postId={}", id, response.postId());
-        return response;
+        return CommentResponse.from(comment);
     }
 
+    @Logging
     @Transactional
     public void delete(Long id) {
         Comment comment = getComment(id);
-        Long postId = comment.getPost().getId();
         commentRepository.delete(comment);
-        log.info("comment.deleted commentId={} postId={}", id, postId);
     }
 
     private Comment getComment(Long id) {

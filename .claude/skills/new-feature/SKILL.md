@@ -1,6 +1,6 @@
 ---
 name: new-feature
-description: 새 도메인 모듈(Entity/Repository/Service/Controller/DTO)을 추가한다. 도메인명과 요구사항을 받아 post 모듈을 레퍼런스로 전체 레이어를 생성한다.
+description: 새 도메인 모듈(Entity/Repository/Service/Controller/DTO)을 추가한다. 도메인명과 요구사항을 받아 architecture.md의 레퍼런스 모듈 기준으로 전체 레이어를 생성한다.
 argument-hint: <도메인명> <요구사항>
 allowed-tools: Read, Grep, Glob, Edit, Write
 ---
@@ -13,36 +13,38 @@ allowed-tools: Read, Grep, Glob, Edit, Write
 ## 새 도메인 모듈 체크리스트: {도메인명}
 
 ### 분석
-- [ ] 1. `.claude/architecture.md` 읽기
-- [ ] 2. `post` 모듈 전체 파일 읽기 (레퍼런스)
-- [ ] 3. `common/exception/ErrorCode.java` 읽기
-- [ ] 4. 필요한 파일 목록 확정
+- [ ] 1. `CLAUDE.md` 읽기 — 베이스 패키지, 레퍼런스 모듈 확인
+- [ ] 2. `.claude/architecture.md` 읽기
+- [ ] 3. `.claude/context/` 파일 존재 시 전부 읽기 (erd.md, api-spec.md, business-rules.md)
+- [ ] 4. 레퍼런스 모듈 전체 파일 읽기
+- [ ] 5. `common/exception/ErrorCode.java` 읽기
+- [ ] 6. 생성할 파일 목록 확정
 
 ### 도메인 레이어
-- [ ] 5. `{domain}/domain/{Domain}.java` — Entity 생성
+- [ ] 7. `{domain}/domain/{Domain}.java` — Entity 생성
 
 ### 인프라 레이어
-- [ ] 6. `{domain}/infrastructure/{Domain}Repository.java` — Repository 생성
+- [ ] 8. `{domain}/infrastructure/{Domain}Repository.java` — Repository 생성
 
 ### 애플리케이션 레이어
-- [ ] 7. `ErrorCode.java` — {DOMAIN}_NOT_FOUND 등 에러코드 추가
-- [ ] 8. `{domain}/application/{Domain}Service.java` — Service 생성
+- [ ] 9. `ErrorCode.java` — {DOMAIN}_NOT_FOUND 등 에러코드 추가
+- [ ] 10. `{domain}/application/{Domain}Service.java` — Service 생성
 
 ### 프레젠테이션 레이어
-- [ ] 9. `dto/{Domain}CreateRequest.java`
-- [ ] 10. `dto/{Domain}UpdateRequest.java`
-- [ ] 11. `dto/{Domain}Response.java`
-- [ ] 12. `{domain}/presentation/{Domain}Controller.java`
+- [ ] 11. `dto/{Domain}CreateRequest.java`
+- [ ] 12. `dto/{Domain}UpdateRequest.java`
+- [ ] 13. `dto/{Domain}Response.java`
+- [ ] 14. `{domain}/presentation/{Domain}Controller.java`
 
 ### 검증
-- [ ] 13. 모든 import 경로 확인 (`org.son.monitor.{domain}.*`)
-- [ ] 14. `ApiResponse<T>` 반환 타입 확인
-- [ ] 15. `@Transactional` 어노테이션 확인
-- [ ] 16. 로깅 포맷 확인 (`log.info("event.name key=value")`)
+- [ ] 15. 모든 import 경로 확인 (`{베이스패키지}.{domain}.*`)
+- [ ] 16. `ApiResponse<T>` 반환 타입 확인
+- [ ] 17. `@Transactional` 어노테이션 확인
+- [ ] 18. 로깅 포맷 확인 (`log.info("event.name key=value")`)
 ```
 
 ## 강제 규칙
-- `post` 모듈과 동일한 패턴 유지
-- 메트릭 Counter 필요 시 생성자 직접 작성 (MeterRegistry 주입)
+- 레퍼런스 모듈(`CLAUDE.md`의 "레퍼런스 모듈" 항목)과 동일한 패턴 유지
+- 베이스 패키지는 `CLAUDE.md`의 "베이스 패키지" 항목에서 읽는다. 하드코딩 금지
 - Record DTO + static `from()` + `toEntity()` 패턴 유지
 - `.claude/architecture.md` 패턴과 충돌하는 코드 작성 금지

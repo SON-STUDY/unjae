@@ -3,7 +3,7 @@ name: pr
 description: 코드 검토 후 PR을 생성한다. 중심 이슈 번호를 인수로 받아 아키텍처 검토 → PR 제목/본문 작성 → gh pr create 순으로 실행한다.
 argument-hint: <이슈번호>
 disable-model-invocation: true
-allowed-tools: Bash(git *), Bash(gh pr *)
+allowed-tools: Bash
 ---
 
 # pr: #$ARGUMENTS

@@ -10,7 +10,9 @@ import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.reflect.MethodSignature;
 import org.springframework.stereotype.Component;
 
+import java.util.Collection;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Pattern;
 
 @Slf4j
 @Aspect
@@ -20,7 +22,17 @@ public class LoggingAspect {
 
     private final MeterRegistry meterRegistry;
 
-    @Around("execution(* org.son.monitor.*.application.*.*(..))")
+    // password, passwd, secret, token, credential 필드값 마스킹
+    private static final Pattern SENSITIVE_PATTERN = Pattern.compile(
+            "(?i)(password|passwd|secret|token|credential)=([^,)]+)"
+    );
+
+    /**
+     * @Logging 어노테이션이 붙은 메서드만 AOP 적용.
+     * - write(create/update/delete): INFO 레벨
+     * - read(find/get): DEBUG 레벨
+     */
+    @Around("@annotation(org.son.monitor.common.annotation.Logging)")
     public Object logService(ProceedingJoinPoint joinPoint) throws Throwable {
         MethodSignature signature = (MethodSignature) joinPoint.getSignature();
         String className = signature.getDeclaringType().getSimpleName();
@@ -32,10 +44,12 @@ public class LoggingAspect {
                 || methodName.startsWith("update")
                 || methodName.startsWith("delete");
 
+        String maskedArgs = maskSensitive(namedArgs(paramNames, args));
+
         if (isWrite) {
-            log.info("[{}] {} 호출 - {}", className, methodName, namedArgs(paramNames, args));
+            log.info("[{}] {} args={}", className, methodName, maskedArgs);
         } else {
-            log.debug("[{}] {} 호출 - {}", className, methodName, namedArgs(paramNames, args));
+            log.debug("[{}] {} args={}", className, methodName, maskedArgs);
         }
 
         long start = System.currentTimeMillis();
@@ -45,17 +59,18 @@ public class LoggingAspect {
             long elapsed = System.currentTimeMillis() - start;
 
             if (isWrite) {
-                log.info("[{}] {} 완료 ({}ms) → {}", className, methodName, elapsed, result);
+                log.info("[{}] {} completed ({}ms) result={}", className, methodName, elapsed, formatResult(result));
             } else {
-                log.debug("[{}] {} 완료 ({}ms)", className, methodName, elapsed);
+                log.debug("[{}] {} completed ({}ms) result={}", className, methodName, elapsed, formatResult(result));
             }
             return result;
         } catch (Throwable t) {
             status = "error";
+            long elapsed = System.currentTimeMillis() - start;
+            log.warn("[{}] {} failed ({}ms) error={}", className, methodName, elapsed, t.getMessage());
             throw t;
         } finally {
             long elapsed = System.currentTimeMillis() - start;
-            // 서비스 레이어 실행 시간 기록 (p95/p99 집계용 히스토그램)
             Timer.builder("service.method.duration")
                     .description("Service layer method execution time")
                     .tag("class", className)
@@ -67,6 +82,7 @@ public class LoggingAspect {
         }
     }
 
+    /** 파라미터 이름=값 형식으로 조합 */
     private String namedArgs(String[] names, Object[] args) {
         if (args == null || args.length == 0) return "()";
         StringBuilder sb = new StringBuilder("(");
@@ -79,5 +95,26 @@ public class LoggingAspect {
         }
         sb.append(")");
         return sb.toString();
+    }
+
+    /** password, secret 등 민감 필드를 **** 로 치환 */
+    private String maskSensitive(String raw) {
+        return SENSITIVE_PATTERN.matcher(raw).replaceAll("$1=****");
+    }
+
+    /**
+     * 결과값 포맷.
+     * - Collection/배열: size만 출력 (로그 공해 방지)
+     * - 그 외: toString()
+     */
+    private String formatResult(Object result) {
+        if (result == null) return "null";
+        if (result instanceof Collection<?> col) {
+            return "List(size=" + col.size() + ")";
+        }
+        if (result instanceof Object[] arr) {
+            return "Array(size=" + arr.length + ")";
+        }
+        return String.valueOf(result);
     }
 }
