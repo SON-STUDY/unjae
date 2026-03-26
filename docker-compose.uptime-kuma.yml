@@ -1,0 +1,21 @@
+services:
+
+  uptime-kuma:
+    image: louislam/uptime-kuma:1
+    container_name: monitor-uptime-kuma
+    ports:
+      - "3001:3001"
+    volumes:
+      - uptime_kuma_data:/app/data
+      - /var/run/docker.sock:/var/run/docker.sock:ro  # Docker 컨테이너 상태 모니터링용
+    networks:
+      - monitor-net   # 메인 서비스와 같은 네트워크 → 내부 URL로 헬스체크 가능
+    restart: unless-stopped
+
+volumes:
+  uptime_kuma_data:
+
+networks:
+  monitor-net:
+    external: true
+    name: monitor_monitor-net  # Docker Compose가 프로젝트명을 prefix로 붙인 실제 네트워크명

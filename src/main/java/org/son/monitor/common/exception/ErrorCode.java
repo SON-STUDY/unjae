@@ -14,6 +14,7 @@ public enum ErrorCode {
 
     // Post
     POST_NOT_FOUND(ResponseCode.NOT_FOUND, "게시글을 찾을 수 없습니다."),
+    POST_FORBIDDEN(ResponseCode.FORBIDDEN, "게시글에 대한 권한이 없습니다."),
 
     // Comment
     COMMENT_NOT_FOUND(ResponseCode.NOT_FOUND, "댓글을 찾을 수 없습니다."),

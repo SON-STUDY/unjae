@@ -1,0 +1,24 @@
+apiVersion: 1
+
+contactPoints:
+  - orgId: 1
+    name: discord
+    receivers:
+      - uid: discord-webhook
+        type: discord
+        settings:
+          url: "https://discord.com/api/webhooks/1486034606690930750/hkirwiRspwWfBgJfTmvyhId2jWe5M-0xzG3Sl0JIjfMEo89dlDDCkuJOC7w6FtW25GT5"
+          message: |
+            {{ range .Alerts -}}
+            {{ if eq .Status "resolved" -}}
+            ✅ [RECOVERED] monitor
+            {{ .Annotations.alert_type }} 정상 복귀
+            {{ .EndsAt.Format "2006-01-02 15:04:05" }}
+            {{ else -}}
+            {{ if eq .Labels.severity "critical" }}🔴{{ else }}⚠️{{ end }} [{{ .Annotations.alert_type }}] monitor
+            {{ .Annotations.description }}
+            {{ .StartsAt.Format "2006-01-02 15:04:05" }}{{ if .Annotations.runbook_url }}
+            🔍 {{ .Annotations.runbook_url }}{{ end }}
+            {{ end }}
+            {{ end -}}
+        disableResolveMessage: false

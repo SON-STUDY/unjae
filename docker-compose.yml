@@ -13,6 +13,12 @@ services:
     depends_on:
       mysql:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
     networks:
       - monitor-net
     restart: unless-stopped
@@ -67,6 +73,7 @@ services:
       GF_SECURITY_ADMIN_PASSWORD: admin
       GF_USERS_ALLOW_SIGN_UP: "false"
       GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/spring-monitor.json
+      DISCORD_WEBHOOK_URL: https://discord.com/api/webhooks/1486034606690930750/hkirwiRspwWfBgJfTmvyhId2jWe5M-0xzG3Sl0JIjfMEo89dlDDCkuJOC7w6FtW25GT5
     volumes:
       - grafana_data:/var/lib/grafana
       - ./grafana/provisioning:/etc/grafana/provisioning:ro
@@ -89,6 +96,36 @@ services:
       - monitor-net
     restart: unless-stopped
 
+  # ── k6 부하 테스트 (profile: load-test 로 명시적 실행) ────────────────
+  k6:
+    image: grafana/k6:latest
+    container_name: monitor-k6
+    profiles: [load-test]
+    command: run /scripts/load-test.js
+    volumes:
+      - ./k6:/scripts:ro
+    environment:
+      K6_BASE_URL: http://app:8080
+    depends_on:
+      app:
+        condition: service_healthy
+    networks:
+      - monitor-net
+
+  # ── Promtail (로그 수집 에이전트) ────────────────────────────────────
+  promtail:
+    image: grafana/promtail:2.9.0
+    container_name: monitor-promtail
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./loki/promtail-config.yml:/etc/promtail/config.yml:ro
+    command: -config.file=/etc/promtail/config.yml
+    depends_on:
+      - loki
+    networks:
+      - monitor-net
+    restart: unless-stopped
+
   # ── Loki (로그 저장소) ────────────────────────────────────────────────
   loki:
     image: grafana/loki:2.9.0
@@ -99,21 +136,6 @@ services:
       - ./loki/loki-config.yml:/etc/loki/config.yml:ro
       - loki_data:/loki
     command: -config.file=/etc/loki/config.yml
-    networks:
-      - monitor-net
-    restart: unless-stopped
-
-  # ── Promtail (로그 수집 에이전트) ─────────────────────────────────────
-  promtail:
-    image: grafana/promtail:2.9.0
-    container_name: monitor-promtail
-    volumes:
-      - ./loki/promtail-config.yml:/etc/promtail/config.yml:ro
-      - /var/run/docker.sock:/var/run/docker.sock:ro   # Docker 소켓 접근
-      - /var/lib/docker/containers:/var/lib/docker/containers:ro  # 컨테이너 로그
-    command: -config.file=/etc/promtail/config.yml
-    depends_on:
-      - loki
     networks:
       - monitor-net
     restart: unless-stopped

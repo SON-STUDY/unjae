@@ -12,10 +12,11 @@ import org.son.monitor.post.presentation.dto.PostCreateRequest;
 import org.son.monitor.post.presentation.dto.PostResponse;
 import org.son.monitor.post.presentation.dto.PostUpdateRequest;
 import org.son.monitor.user.application.UserService;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.List;
 
 @Slf4j
 @Service
@@ -39,10 +40,9 @@ public class PostService {
     }
 
     @Logging
-    public List<PostResponse> findAll() {
-        return postRepository.findAllWithAuthor().stream()
-                .map(PostResponse::from)
-                .toList();
+    public Page<PostResponse> findAll(int page, int size) {
+        PageRequest pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        return postRepository.findAllWithAuthor(pageable).map(PostResponse::from);
     }
 
     @Logging
@@ -61,16 +61,23 @@ public class PostService {
 
     @Logging
     @Transactional
-    public PostResponse update(Long id, PostUpdateRequest request) {
+    public PostResponse update(Long id, Long userId, PostUpdateRequest request) {
         Post post = getPost(id);
+        if (!post.getAuthor().getId().equals(userId)) {
+            throw new BusinessException(ErrorCode.POST_FORBIDDEN);
+        }
         post.update(request.title(), request.content());
         return PostResponse.from(post);
     }
 
     @Logging
     @Transactional
-    public void delete(Long id) {
-        postRepository.delete(getPost(id));
+    public void delete(Long id, Long userId) {
+        Post post = getPost(id);
+        if (!post.getAuthor().getId().equals(userId)) {
+            throw new BusinessException(ErrorCode.POST_FORBIDDEN);
+        }
+        postRepository.delete(post);
         postDeletedCounter.increment();
     }
 

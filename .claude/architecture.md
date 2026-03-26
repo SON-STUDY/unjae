@@ -109,8 +109,21 @@ xxxCounter.increment();
 ---
 
 ## 모니터링 스택
-- Prometheus → 메트릭 수집
-- Grafana → 시각화
-- Loki → 로그 수집 (Logstash JSON 포맷)
+- Prometheus → 메트릭 수집 (`/actuator/prometheus` scrape)
+- Grafana → 시각화 (Prometheus + Loki 데이터소스)
+- Loki → 로그 저장소 (앱에서 Loki4j로 직접 푸시, Promtail 미사용)
 - Dozzle → 컨테이너 로그 뷰어
-- MDC → traceId 자동 주입 (TSID 기반)
+- MDC → traceId/userId/requestUri/method 자동 주입 (TSID 기반)
+
+### 로그 흐름
+```
+App (Loki4jAppender) ──JSON push──▶ Loki ──▶ Grafana
+App (LogstashEncoder) ──stdout────▶ Dozzle
+App (/actuator/prometheus) ◀──scrape── Prometheus ──▶ Grafana
+```
+
+### AOP 로깅 전략
+- `@Logging` 어노테이션 → Service 메서드에 적용
+- write(create/update/delete): INFO, read(find/get): DEBUG
+- 민감 필드 마스킹: `password`, `token`, `accessToken`, `refreshToken` → `[REDACTED]`
+- FAIL 로그: `exception={클래스명} message={메시지}`

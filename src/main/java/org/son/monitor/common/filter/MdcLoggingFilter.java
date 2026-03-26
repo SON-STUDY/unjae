@@ -18,6 +18,8 @@ public class MdcLoggingFilter extends OncePerRequestFilter {
 
     private static final String TRACE_ID = "traceId";
     private static final String USER_ID = "userId";
+    private static final String REQUEST_URI = "requestUri";
+    private static final String METHOD = "method";
     private static final String UPSTREAM_TRACE_HEADER = "X-Trace-Id";
     private static final String USER_ID_HEADER = "X-User-Id";
 
@@ -35,6 +37,8 @@ public class MdcLoggingFilter extends OncePerRequestFilter {
 
             MDC.put(TRACE_ID, traceId);
             MDC.put(USER_ID, userId != null ? userId : "-");
+            MDC.put(REQUEST_URI, request.getRequestURI());
+            MDC.put(METHOD, request.getMethod());
 
             // 응답 헤더에도 traceId를 실어서 클라이언트가 로그 추적 가능하게
             response.setHeader(UPSTREAM_TRACE_HEADER, traceId);

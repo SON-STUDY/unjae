@@ -1,0 +1,9 @@
+apiVersion: 1
+
+policies:
+  - orgId: 1
+    receiver: discord
+    group_by: [alertname, severity]
+    group_wait: 10s       # 첫 알림까지 대기 (빠른 감지용)
+    group_interval: 30s   # 같은 그룹 추가 알림 간격
+    repeat_interval: 2m   # 미해결 알림 반복 간격

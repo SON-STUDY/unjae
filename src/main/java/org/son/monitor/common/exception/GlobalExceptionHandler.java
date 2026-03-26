@@ -11,6 +11,8 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.bind.MissingRequestHeaderException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.util.stream.Collectors;
 
@@ -23,8 +25,8 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(BusinessException.class)
     public ResponseEntity<ApiResponse<Void>> handleBusinessException(BusinessException e) {
-        log.warn("[BusinessException] {}", e.getMessage());
         ErrorCode errorCode = e.getErrorCode();
+        log.warn("[BusinessException] errorCode={} message={}", errorCode.name(), e.getMessage());
 
         // 비즈니스 예외 카운터 (error_code 태그로 세분화)
         Counter.builder("app.errors.business")
@@ -54,6 +56,23 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .status(ResponseCode.BAD_REQUEST.getHttpStatus())
                 .body(ApiResponse.error(ResponseCode.BAD_REQUEST, message));
+    }
+
+    @ExceptionHandler(MissingRequestHeaderException.class)
+    public ResponseEntity<ApiResponse<Void>> handleMissingRequestHeaderException(MissingRequestHeaderException e) {
+        String message = "필수 헤더가 누락되었습니다: " + e.getHeaderName();
+        log.warn("[MissingRequestHeaderException] {}", message);
+        return ResponseEntity
+                .status(ResponseCode.BAD_REQUEST.getHttpStatus())
+                .body(ApiResponse.error(ResponseCode.BAD_REQUEST, message));
+    }
+
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<ApiResponse<Void>> handleNoResourceFoundException(NoResourceFoundException e) {
+        // 정적 리소스 없음 (favicon.ico 등) — 로그/메트릭 생략
+        return ResponseEntity
+                .status(ResponseCode.NOT_FOUND.getHttpStatus())
+                .body(ApiResponse.error(ResponseCode.NOT_FOUND, e.getMessage()));
     }
 
     @ExceptionHandler(Exception.class)

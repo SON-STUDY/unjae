@@ -7,10 +7,9 @@ import org.son.monitor.post.application.PostService;
 import org.son.monitor.post.presentation.dto.PostCreateRequest;
 import org.son.monitor.post.presentation.dto.PostResponse;
 import org.son.monitor.post.presentation.dto.PostUpdateRequest;
+import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/posts")
@@ -20,8 +19,10 @@ public class PostController {
     private final PostService postService;
 
     @GetMapping
-    public ApiResponse<List<PostResponse>> findAll() {
-        return ApiResponse.ok(postService.findAll());
+    public ApiResponse<Page<PostResponse>> findAll(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        return ApiResponse.ok(postService.findAll(page, size));
     }
 
     @GetMapping("/{id}")
@@ -38,14 +39,19 @@ public class PostController {
     }
 
     @PutMapping("/{id}")
-    public ApiResponse<PostResponse> update(@PathVariable Long id, @Valid @RequestBody PostUpdateRequest request) {
-        return ApiResponse.ok(postService.update(id, request));
+    public ApiResponse<PostResponse> update(
+            @PathVariable Long id,
+            @RequestHeader("X-User-Id") Long userId,
+            @Valid @RequestBody PostUpdateRequest request) {
+        return ApiResponse.ok(postService.update(id, userId, request));
     }
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public ApiResponse<Void> delete(@PathVariable Long id) {
-        postService.delete(id);
+    public ApiResponse<Void> delete(
+            @PathVariable Long id,
+            @RequestHeader("X-User-Id") Long userId) {
+        postService.delete(id, userId);
         return ApiResponse.noContent();
     }
 }

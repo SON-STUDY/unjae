@@ -8,6 +8,7 @@ import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.reflect.MethodSignature;
+import org.son.monitor.common.exception.BusinessException;
 import org.springframework.stereotype.Component;
 
 import java.util.Collection;
@@ -22,9 +23,9 @@ public class LoggingAspect {
 
     private final MeterRegistry meterRegistry;
 
-    // password, passwd, secret, token, credential 필드값 마스킹
+    // password, token, accessToken, refreshToken 필드값 마스킹
     private static final Pattern SENSITIVE_PATTERN = Pattern.compile(
-            "(?i)(password|passwd|secret|token|credential)=([^,)]+)"
+            "(?i)(password|token|accessToken|refreshToken)=([^,)]+)"
     );
 
     /**
@@ -64,10 +65,13 @@ public class LoggingAspect {
                 log.debug("[{}] {} completed ({}ms) result={}", className, methodName, elapsed, formatResult(result));
             }
             return result;
+        } catch (BusinessException t) {
+            status = "error";
+            throw t;
         } catch (Throwable t) {
             status = "error";
             long elapsed = System.currentTimeMillis() - start;
-            log.warn("[{}] {} failed ({}ms) error={}", className, methodName, elapsed, t.getMessage());
+            log.warn("[{}] {} FAIL ({}ms) exception={} message={}", className, methodName, elapsed, t.getClass().getSimpleName(), t.getMessage());
             throw t;
         } finally {
             long elapsed = System.currentTimeMillis() - start;
@@ -97,9 +101,9 @@ public class LoggingAspect {
         return sb.toString();
     }
 
-    /** password, secret 등 민감 필드를 **** 로 치환 */
+    /** password, token 등 민감 필드를 [REDACTED] 로 치환 */
     private String maskSensitive(String raw) {
-        return SENSITIVE_PATTERN.matcher(raw).replaceAll("$1=****");
+        return SENSITIVE_PATTERN.matcher(raw).replaceAll("$1=[REDACTED]");
     }
 
     /**

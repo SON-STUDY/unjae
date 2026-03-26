@@ -15,6 +15,7 @@ public enum ResponseCode {
 
     // 4xx
     BAD_REQUEST(HttpStatus.BAD_REQUEST, "잘못된 요청입니다."),
+    FORBIDDEN(HttpStatus.FORBIDDEN, "접근 권한이 없습니다."),
     NOT_FOUND(HttpStatus.NOT_FOUND, "리소스를 찾을 수 없습니다."),
     CONFLICT(HttpStatus.CONFLICT, "이미 존재하는 리소스입니다."),
 

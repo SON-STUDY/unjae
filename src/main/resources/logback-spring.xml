@@ -6,7 +6,7 @@
 
         <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
             <encoder>
-                <pattern>%d{HH:mm:ss.SSS} [%-5level] [trace=%X{traceId:-?}] [user=%X{userId:-?}] %logger{30} - %msg%n</pattern>
+                <pattern>%d{HH:mm:ss.SSS} [%-5level] [trace=%X{traceId:-?}] [user=%X{userId:-?}] [%X{method:-?} %X{requestUri:-?}] %logger{30} - %msg%n</pattern>
                 <charset>UTF-8</charset>
             </encoder>
         </appender>
@@ -21,14 +21,17 @@
 
     </springProfile>
 
-    <!-- ===== PROD: JSON 구조화 로그 (Loki / ELK 수집용) ===== -->
+    <!-- ===== PROD: JSON 구조화 로그 (Loki 직접 푸시 + 콘솔 백업) ===== -->
     <springProfile name="prod">
 
+        <!-- JSON 콘솔 출력 (Dozzle 뷰용) -->
         <appender name="JSON_CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
             <encoder class="net.logstash.logback.encoder.LogstashEncoder">
                 <!-- MDC 필드를 최상위 JSON 필드로 승격 -->
                 <includeMdcKeyName>traceId</includeMdcKeyName>
                 <includeMdcKeyName>userId</includeMdcKeyName>
+                <includeMdcKeyName>requestUri</includeMdcKeyName>
+                <includeMdcKeyName>method</includeMdcKeyName>
                 <!-- 서비스 식별 고정 태그 -->
                 <customFields>{"service":"monitor","env":"prod"}</customFields>
                 <!-- 필드명 표준화 -->
@@ -47,11 +50,30 @@
             </encoder>
         </appender>
 
+        <!-- Loki 직접 푸시 (Promtail 없이 앱에서 직접 전송) -->
+        <appender name="LOKI" class="com.github.loki4j.logback.Loki4jAppender">
+            <http>
+                <url>http://loki:3100/loki/api/v1/push</url>
+                <connectionTimeoutMs>5000</connectionTimeoutMs>
+                <requestTimeoutMs>5000</requestTimeoutMs>
+            </http>
+            <format>
+                <label>
+                    <pattern>app=monitor,level=%level</pattern>
+                </label>
+                <message>
+                    <pattern>{"@timestamp":"%date{yyyy-MM-dd'T'HH:mm:ss.SSSZ}","level":"%level","traceId":"%X{traceId:-}","userId":"%X{userId:-}","requestUri":"%X{requestUri:-}","method":"%X{method:-}","service":"monitor","logger":"%logger{36}","message":"%message"}%n</pattern>
+                </message>
+                <sortByTime>true</sortByTime>
+            </format>
+        </appender>
+
         <logger name="org.son.monitor" level="INFO"/>
         <logger name="org.springframework.web.servlet.mvc.method.annotation.ExceptionHandlerExceptionResolver" level="OFF"/>
 
         <root level="WARN">
             <appender-ref ref="JSON_CONSOLE"/>
+            <appender-ref ref="LOKI"/>
         </root>
 
     </springProfile>

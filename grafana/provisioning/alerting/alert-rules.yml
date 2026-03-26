@@ -1,0 +1,456 @@
+apiVersion: 1
+
+groups:
+  - orgId: 1
+    name: monitor-alerts
+    folder: Monitor
+    interval: 30s
+    rules:
+
+      # ── 1. HTTP 5xx 에러율 > 0.5% ────────────────────────────────────
+      - uid: http-error-rate
+        title: "HTTP 5xx 에러율 > 0.5%"
+        condition: threshold
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: prometheus-main
+            model:
+              datasource:
+                type: prometheus
+                uid: prometheus-main
+              expr: >-
+                sum(rate(http_server_requests_seconds_count{application="monitor",outcome="SERVER_ERROR"}[1m]))
+                / sum(rate(http_server_requests_seconds_count{application="monitor"}[1m])) * 100
+              instant: true
+              refId: A
+          - refId: threshold
+            datasourceUid: "__expr__"
+            model:
+              type: threshold
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: A
+              refId: threshold
+              conditions:
+                - type: query
+                  evaluator:
+                    type: gt
+                    params: [0.5]
+                  operator:
+                    type: and
+                  query:
+                    params: [A]
+                  reducer:
+                    type: last
+                    params: []
+        noDataState: OK
+        execErrState: OK
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          alert_type: "ERROR RATE"
+          summary: "HTTP 5xx 에러율 급등"
+          description: "에러율 {{ $values.A.Value | printf \"%.2f\" }}% → 임계값 0.5% 초과"
+
+      # ── 2. HTTP p95 레이턴시 > 300ms ─────────────────────────────────
+      - uid: http-p95-latency
+        title: "HTTP p95 레이턴시 > 300ms"
+        condition: threshold
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: prometheus-main
+            model:
+              datasource:
+                type: prometheus
+                uid: prometheus-main
+              expr: >-
+                histogram_quantile(0.95,
+                  sum(rate(http_server_requests_seconds_bucket{application="monitor"}[1m])) by (le)
+                ) * 1000
+              instant: true
+              refId: A
+          - refId: threshold
+            datasourceUid: "__expr__"
+            model:
+              type: threshold
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: A
+              refId: threshold
+              conditions:
+                - type: query
+                  evaluator:
+                    type: gt
+                    params: [300]
+                  operator:
+                    type: and
+                  query:
+                    params: [A]
+                  reducer:
+                    type: last
+                    params: []
+        noDataState: OK
+        execErrState: OK
+        for: 30s
+        labels:
+          severity: warning
+        annotations:
+          alert_type: "SLOW RESPONSE"
+          summary: "HTTP p95 레이턴시 급등"
+          description: "p95 latency {{ $values.A.Value | printf \"%.0f\" }}ms → 임계값 300ms 초과"
+
+      # ── 3. 서비스 레이어 p95 > 200ms ─────────────────────────────────
+      - uid: service-p95-latency
+        title: "서비스 레이어 p95 > 200ms"
+        condition: threshold
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: prometheus-main
+            model:
+              datasource:
+                type: prometheus
+                uid: prometheus-main
+              expr: >-
+                histogram_quantile(0.95,
+                  sum(rate(service_method_duration_seconds_bucket{application="monitor"}[1m])) by (le)
+                ) * 1000
+              instant: true
+              refId: A
+          - refId: threshold
+            datasourceUid: "__expr__"
+            model:
+              type: threshold
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: A
+              refId: threshold
+              conditions:
+                - type: query
+                  evaluator:
+                    type: gt
+                    params: [200]
+                  operator:
+                    type: and
+                  query:
+                    params: [A]
+                  reducer:
+                    type: last
+                    params: []
+        noDataState: OK
+        execErrState: OK
+        for: 30s
+        labels:
+          severity: warning
+        annotations:
+          alert_type: "SLOW RESPONSE"
+          summary: "서비스 레이어 처리 지연"
+          description: "service p95 {{ $values.A.Value | printf \"%.0f\" }}ms → 임계값 200ms 초과"
+
+      # ── 4. HTTP p99 레이턴시 > 100ms (데모용) ───────────────────────
+      - uid: http-p99-latency
+        title: "HTTP p99 레이턴시 > 100ms"
+        condition: threshold
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: prometheus-main
+            model:
+              datasource:
+                type: prometheus
+                uid: prometheus-main
+              expr: >-
+                histogram_quantile(0.99,
+                  sum(rate(http_server_requests_seconds_bucket{application="monitor"}[1m])) by (le)
+                ) * 1000
+              instant: true
+              refId: A
+          - refId: threshold
+            datasourceUid: "__expr__"
+            model:
+              type: threshold
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: A
+              refId: threshold
+              conditions:
+                - type: query
+                  evaluator:
+                    type: gt
+                    params: [100]
+                  operator:
+                    type: and
+                  query:
+                    params: [A]
+                  reducer:
+                    type: last
+                    params: []
+        noDataState: OK
+        execErrState: OK
+        for: 30s
+        labels:
+          severity: warning
+        annotations:
+          alert_type: "SLOW RESPONSE"
+          summary: "HTTP p99 레이턴시 급등"
+          description: "p99 latency {{ $values.A.Value | printf \"%.0f\" }}ms → 임계값 100ms 초과"
+
+      # ── 5. CPU 사용률 > 70% ───────────────────────────────────────────
+      - uid: cpu-usage
+        title: "CPU 사용률 > 70%"
+        condition: threshold
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: prometheus-main
+            model:
+              datasource:
+                type: prometheus
+                uid: prometheus-main
+              expr: process_cpu_usage{application="monitor"} * 100
+              instant: true
+              refId: A
+          - refId: threshold
+            datasourceUid: "__expr__"
+            model:
+              type: threshold
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: A
+              refId: threshold
+              conditions:
+                - type: query
+                  evaluator:
+                    type: gt
+                    params: [70]
+                  operator:
+                    type: and
+                  query:
+                    params: [A]
+                  reducer:
+                    type: last
+                    params: []
+        noDataState: OK
+        execErrState: OK
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          alert_type: "CPU USAGE"
+          summary: "CPU 사용률 급등"
+          description: "CPU {{ $values.A.Value | printf \"%.1f\" }}% → 임계값 70% 초과"
+
+      # ── 5. JVM 힙 메모리 > 80% ───────────────────────────────────────
+      - uid: jvm-heap-memory
+        title: "JVM 힙 메모리 > 80%"
+        condition: threshold
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: prometheus-main
+            model:
+              datasource:
+                type: prometheus
+                uid: prometheus-main
+              expr: >-
+                sum(jvm_memory_used_bytes{application="monitor",area="heap"})
+                / sum(jvm_memory_max_bytes{application="monitor",area="heap"}) * 100
+              instant: true
+              refId: A
+          - refId: threshold
+            datasourceUid: "__expr__"
+            model:
+              type: threshold
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: A
+              refId: threshold
+              conditions:
+                - type: query
+                  evaluator:
+                    type: gt
+                    params: [80]
+                  operator:
+                    type: and
+                  query:
+                    params: [A]
+                  reducer:
+                    type: last
+                    params: []
+        noDataState: OK
+        execErrState: OK
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          alert_type: "MEMORY"
+          summary: "JVM 힙 메모리 부족"
+          description: "힙 메모리 {{ $values.A.Value | printf \"%.1f\" }}% → 임계값 80% 초과"
+
+      # ── 6. DB 커넥션 풀 > 80% ────────────────────────────────────────
+      - uid: db-connection-pool
+        title: "DB 커넥션 풀 > 80%"
+        condition: threshold
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: prometheus-main
+            model:
+              datasource:
+                type: prometheus
+                uid: prometheus-main
+              expr: >-
+                hikaricp_connections_active{application="monitor"}
+                / hikaricp_connections_max{application="monitor"} * 100
+              instant: true
+              refId: A
+          - refId: threshold
+            datasourceUid: "__expr__"
+            model:
+              type: threshold
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: A
+              refId: threshold
+              conditions:
+                - type: query
+                  evaluator:
+                    type: gt
+                    params: [80]
+                  operator:
+                    type: and
+                  query:
+                    params: [A]
+                  reducer:
+                    type: last
+                    params: []
+        noDataState: OK
+        execErrState: OK
+        for: 30s
+        labels:
+          severity: warning
+        annotations:
+          alert_type: "DB CONNECTION"
+          summary: "DB 커넥션 풀 고갈 위험"
+          description: "커넥션 풀 {{ $values.A.Value | printf \"%.1f\" }}% → 임계값 80% 초과"
+
+      # ── 7. 권한 없는 게시글 접근 시도 (SECURITY) ─────────────────────
+      - uid: post-forbidden-access
+        title: "권한 없는 게시글 접근 시도"
+        condition: threshold
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 60
+              to: 0
+            datasourceUid: prometheus-main
+            model:
+              datasource:
+                type: prometheus
+                uid: prometheus-main
+              expr: increase(app_errors_business_total{application="monitor",error_code="POST_FORBIDDEN"}[1m])
+              instant: true
+              refId: A
+          - refId: threshold
+            datasourceUid: "__expr__"
+            model:
+              type: threshold
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: A
+              refId: threshold
+              conditions:
+                - type: query
+                  evaluator:
+                    type: gt
+                    params: [0]
+                  operator:
+                    type: and
+                  query:
+                    params: [A]
+                  reducer:
+                    type: last
+                    params: []
+        noDataState: OK
+        execErrState: OK
+        for: 0s
+        labels:
+          severity: critical
+        annotations:
+          alert_type: "SECURITY"
+          summary: "권한 없는 게시글 접근 시도"
+          description: "타인 게시글 수정/삭제 시도 {{ $values.A.Value | printf \"%.0f\" }}건 감지 (1분)"
+          runbook_url: "http://localhost:3000/explore?orgId=1&left=%7B%22datasource%22%3A%22loki-main%22%2C%22queries%22%3A%5B%7B%22refId%22%3A%22A%22%2C%22expr%22%3A%22%7Bapp%3D%5C%22monitor%5C%22%2Clevel%3D%5C%22WARN%5C%22%7D%20%7C%3D%20%5C%22POST_FORBIDDEN%5C%22%22%7D%5D%2C%22range%22%3A%7B%22from%22%3A%22now-10m%22%2C%22to%22%3A%22now%22%7D%7D"
+
+      # ── 8. 게시글 대량 삭제 감지 ─────────────────────────────────────
+      - uid: bulk-post-delete
+        title: "게시글 대량 삭제 감지"
+        condition: threshold
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: prometheus-main
+            model:
+              datasource:
+                type: prometheus
+                uid: prometheus-main
+              expr: rate(business_post_deleted_total{application="monitor"}[1m]) * 60
+              instant: true
+              refId: A
+          - refId: threshold
+            datasourceUid: "__expr__"
+            model:
+              type: threshold
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: A
+              refId: threshold
+              conditions:
+                - type: query
+                  evaluator:
+                    type: gt
+                    params: [3]
+                  operator:
+                    type: and
+                  query:
+                    params: [A]
+                  reducer:
+                    type: last
+                    params: []
+        noDataState: OK
+        execErrState: OK
+        for: 30s
+        labels:
+          severity: warning
+        annotations:
+          alert_type: "BULK DELETE"
+          summary: "게시글 대량 삭제 감지"
+          description: "분당 삭제 {{ $values.A.Value | printf \"%.0f\" }}건 → 임계값 3건 초과"
